@@ -1,0 +1,57 @@
+suite:
+  name: "Basic QA Accuracy"
+  description: "Verify factual accuracy and quality of model responses on general knowledge questions"
+  criteria:
+    - accuracy
+    - relevance
+    - coherence
+  pass_threshold: 0.7
+
+tests:
+  - id: "capital-france"
+    prompt: "What is the capital of France?"
+    response: "The capital of France is Paris. It has been the capital since the 10th century."
+    reference: "Paris"
+    tags: [geography, factual]
+
+  - id: "python-list"
+    prompt: "How do you create a list in Python?"
+    response: "You can create a list using square brackets: my_list = [1, 2, 3]. You can also use the list() constructor."
+    reference: "Use square brackets [] or the list() constructor"
+    tags: [programming, python]
+
+  - id: "water-formula"
+    prompt: "What is the chemical formula for water?"
+    response: "The chemical formula for water is H2O, consisting of two hydrogen atoms and one oxygen atom."
+    reference: "H2O"
+    tags: [science, chemistry]
+
+  - id: "shakespeare-hamlet"
+    prompt: "Who wrote Hamlet?"
+    response: "Hamlet was written by William Shakespeare, believed to have been composed between 1599 and 1601."
+    reference: "William Shakespeare"
+    tags: [literature, factual]
+
+  - id: "speed-of-light"
+    prompt: "What is the speed of light?"
+    response: "The speed of light in a vacuum is approximately 299,792,458 meters per second, or about 186,000 miles per second."
+    reference: "Approximately 299,792,458 meters per second"
+    tags: [science, physics]
+
+  - id: "incorrect-capital"
+    prompt: "What is the capital of Australia?"
+    response: "The capital of Australia is Sydney, the largest city in the country."
+    reference: "Canberra"
+    tags: [geography, factual, expected-fail]
+
+  - id: "partial-answer"
+    prompt: "Name three primary colors."
+    response: "Red and blue are primary colors."
+    reference: "Red, blue, and yellow (or red, green, and blue for light)"
+    tags: [general, expected-partial]
+
+  - id: "fibonacci-explain"
+    prompt: "Explain the Fibonacci sequence."
+    response: "The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones. It starts with 0 and 1, giving us: 0, 1, 1, 2, 3, 5, 8, 13, 21, and so on. This sequence appears frequently in nature, mathematics, and computer science."
+    reference: "A sequence where each number is the sum of the two preceding ones, starting from 0 and 1"
+    tags: [math, explanation]

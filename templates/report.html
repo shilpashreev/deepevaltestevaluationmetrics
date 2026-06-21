@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ suite_name }} — LLM Judge Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  /* ── Custom Properties ─────────────────────────────────── */
+  :root {
+    --bg-primary:    #0f172a;
+    --bg-secondary:  #1e293b;
+    --bg-card:       rgba(30, 41, 59, 0.65);
+    --bg-card-hover: rgba(30, 41, 59, 0.85);
+    --border:        rgba(148, 163, 184, 0.12);
+    --border-focus:  rgba(99, 102, 241, 0.5);
+    --text-primary:  #f1f5f9;
+    --text-secondary:#94a3b8;
+    --text-muted:    #64748b;
+    --accent:        #6366f1;
+    --accent-glow:   rgba(99, 102, 241, 0.25);
+    --green:         #10b981;
+    --green-bg:      rgba(16, 185, 129, 0.12);
+    --red:           #ef4444;
+    --red-bg:        rgba(239, 68, 68, 0.12);
+    --amber:         #f59e0b;
+    --amber-bg:      rgba(245, 158, 11, 0.12);
+    --radius:        12px;
+    --radius-sm:     8px;
+    --shadow:        0 4px 24px rgba(0,0,0,0.3);
+    --transition:    0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --font-sans:     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono:     'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  /* ── Reset & Base ──────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ────────────────────────────────────────────── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+  }
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p { color: var(--text-secondary); margin-top: 0.5rem; font-size: 1.05rem; }
+
+  /* ── Glass Card ────────────────────────────────────────── */
+  .glass {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  /* ── Dashboard Grid ────────────────────────────────────── */
+  .dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+  .stat-card {
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform var(--transition), box-shadow var(--transition);
+  }
+  .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .stat-card .label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+  .stat-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .stat-card .value.green  { color: var(--green); }
+  .stat-card .value.red    { color: var(--red); }
+  .stat-card .value.amber  { color: var(--amber); }
+  .stat-card .value.accent { color: var(--accent); }
+
+  /* ── Circular Progress ─────────────────────────────────── */
+  .progress-ring {
+    display: inline-block;
+    position: relative;
+    width: 90px; height: 90px;
+    margin-bottom: 0.5rem;
+  }
+  .progress-ring svg { transform: rotate(-90deg); }
+  .progress-ring circle {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+  }
+  .progress-ring .bg   { stroke: var(--border); }
+  .progress-ring .fg   { stroke: var(--green); transition: stroke-dashoffset 1s ease; }
+  .progress-ring .pct  {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  /* ── Filter Bar ────────────────────────────────────────── */
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+  }
+  .filters input[type="text"] {
+    flex: 1 1 220px;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color var(--transition);
+  }
+  .filters input[type="text"]:focus { border-color: var(--border-focus); }
+  .filters input[type="text"]::placeholder { color: var(--text-muted); }
+
+  .filter-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    user-select: none;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* ── Test Cards ────────────────────────────────────────── */
+  .test-card {
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: box-shadow var(--transition);
+  }
+  .test-card:hover { box-shadow: 0 6px 28px rgba(0,0,0,0.35); }
+
+  .test-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+    gap: 1rem;
+  }
+  .test-header:hover { background: var(--bg-card-hover); }
+  .test-id {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .test-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .tag {
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    background: rgba(99,102,241,0.15);
+    color: var(--accent);
+  }
+  .test-score {
+    font-weight: 700;
+    font-size: 1rem;
+    min-width: 50px;
+    text-align: right;
+  }
+  .test-status { font-size: 1.3rem; flex-shrink: 0; }
+  .chevron {
+    transition: transform var(--transition);
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .test-card.open .chevron { transform: rotate(180deg); }
+
+  .test-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.3s ease;
+    padding: 0 1.25rem;
+  }
+  .test-card.open .test-body {
+    max-height: 8000px;
+    padding: 0 1.25rem 1.25rem;
+  }
+
+  .detail-section { margin-bottom: 1rem; }
+  .detail-section h4 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+  }
+  .detail-section pre {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  /* ── Criterion Badges ──────────────────────────────────── */
+  .criteria-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .criterion-badge {
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.85rem;
+    min-width: 140px;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .criterion-badge:hover { transform: translateY(-1px); }
+  .criterion-badge.pass {
+    background: var(--green-bg);
+    border: 1px solid rgba(16,185,129,0.25);
+  }
+  .criterion-badge.fail {
+    background: var(--red-bg);
+    border: 1px solid rgba(239,68,68,0.25);
+  }
+  .criterion-badge.partial {
+    background: var(--amber-bg);
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+  .criterion-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  .criterion-verdict {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-top: 0.15rem;
+  }
+  .criterion-badge.pass .criterion-verdict    { color: var(--green); }
+  .criterion-badge.fail .criterion-verdict    { color: var(--red); }
+  .criterion-badge.partial .criterion-verdict { color: var(--amber); }
+  .criterion-score {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+  }
+
+  /* Reasoning toggle */
+  .reasoning-toggle {
+    font-size: 0.78rem;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+    margin-top: 0.25rem;
+    display: inline-block;
+  }
+  .reasoning-toggle:hover { text-decoration: underline; }
+  .reasoning-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .reasoning-content.open { max-height: 600px; }
+  .reasoning-content pre {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  /* ── Error Banner ──────────────────────────────────────── */
+  .error-banner {
+    background: var(--red-bg);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 1rem;
+    color: var(--red);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Footer ────────────────────────────────────────────── */
+  footer {
+    text-align: center;
+    padding: 2rem 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── Responsive ────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .container { padding: 1rem; }
+    header h1  { font-size: 1.6rem; }
+    .dashboard { grid-template-columns: repeat(2, 1fr); }
+    .test-header { flex-wrap: wrap; }
+    .criteria-row { flex-direction: column; }
+  }
+
+  /* ── Results Matrix Table ──────────────────────────────── */
+  .matrix-wrap {
+    overflow-x: auto;
+    padding: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  table.matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+  }
+  table.matrix thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.7rem 0.6rem;
+    text-align: center;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  table.matrix thead th.tid-col { text-align: left; }
+  table.matrix tbody td {
+    padding: 0.5rem 0.5rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  table.matrix tbody tr:hover { background: var(--bg-card-hover); }
+  td.tid {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .score-cell {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    border-radius: 6px;
+  }
+  .score-cell.agg { font-weight: 800; font-size: 0.95rem; }
+  .sc-green { color: var(--green); background: var(--green-bg); }
+  .sc-amber { color: var(--amber); background: var(--amber-bg); }
+  .sc-red   { color: var(--red);   background: var(--red-bg); }
+  .sc-na    { color: var(--text-muted); }
+
+  /* ── Row drill-down detail ─────────────────────────────── */
+  tr.test-row { cursor: pointer; }
+  tr.test-row .tid::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 0.45rem;
+    color: var(--text-muted);
+    transition: transform var(--transition);
+  }
+  tr.test-row.open .tid::before { transform: rotate(90deg); }
+  tr.detail-row { display: none; }
+  tr.detail-row > td {
+    background: var(--bg-primary);
+    padding: 1.25rem 1.5rem !important;
+    text-align: left !important;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .detail-grid h4, .why-title {
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+  }
+  .detail-grid pre {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.7rem 0.9rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .why-title { margin: 0.25rem 0 0.7rem; font-size: 0.8rem; }
+  .crit-detail {
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    padding: 0.7rem 0.9rem;
+    margin-bottom: 0.6rem;
+  }
+  .crit-detail.crit-fail    { border-left-color: var(--red);   background: var(--red-bg); }
+  .crit-detail.crit-partial { border-left-color: var(--amber); background: var(--amber-bg); }
+  .crit-detail.crit-pass    { border-left-color: var(--green); }
+  .cd-head {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+  }
+  .cd-name { font-weight: 700; font-size: 0.85rem; color: var(--text-primary); }
+  .cd-verdict { font-size: 0.8rem; font-weight: 600; }
+  .crit-fail .cd-verdict    { color: var(--red); }
+  .crit-partial .cd-verdict { color: var(--amber); }
+  .crit-pass .cd-verdict    { color: var(--green); }
+  .cd-reason { font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; }
+
+  /* ── No Results ────────────────────────────────────────── */
+  .no-results {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header>
+    <h1>{{ suite_name }}</h1>
+    {% if description %}<p>{{ description }}</p>{% endif %}
+  </header>
+
+  <!-- ── Dashboard ───────────────────────────────────────── -->
+  {% set pass_rate = (passed_tests / total_tests * 100) if total_tests else 0 %}
+  {% set circ = 251.33 %}
+  {% set offset = circ - (circ * pass_rate / 100) %}
+
+  <div class="dashboard">
+    <div class="glass stat-card">
+      <div class="label">Total Tests</div>
+      <div class="value accent">{{ total_tests }}</div>
+    </div>
+
+    <div class="glass stat-card">
+      <div class="label">Pass Rate</div>
+      <div class="progress-ring">
+        <svg width="90" height="90" viewBox="0 0 90 90">
+          <circle class="bg" cx="45" cy="45" r="40"/>
+          <circle class="fg" cx="45" cy="45" r="40"
+                  stroke-dasharray="{{ circ }}"
+                  stroke-dashoffset="{{ offset }}"
+                  {% if pass_rate < 50 %}style="stroke:var(--red)"
+                  {% elif pass_rate < 80 %}style="stroke:var(--amber)"
+                  {% endif %}/>
+        </svg>
+        <span class="pct {% if pass_rate >= 80 %}green{% elif pass_rate >= 50 %}amber{% else %}red{% endif %}">
+          {{ "%.0f"|format(pass_rate) }}%
+        </span>
+      </div>
+    </div>
+
+    <div class="glass stat-card">
+      <div class="label">Passed / Failed / Errors</div>
+      <div class="value">
+        <span class="green">{{ passed_tests }}</span>
+        <span style="color:var(--text-muted)"> / </span>
+        <span class="red">{{ failed_tests }}</span>
+        <span style="color:var(--text-muted)"> / </span>
+        <span class="amber">{{ error_tests }}</span>
+      </div>
+    </div>
+
+    <div class="glass stat-card">
+      <div class="label">Avg Score</div>
+      <div class="value {% if average_score >= 0.7 %}green{% elif average_score >= 0.4 %}amber{% else %}red{% endif %}">
+        {{ "%.3f"|format(average_score) }}
+      </div>
+    </div>
+
+    <div class="glass stat-card">
+      <div class="label">Duration</div>
+      <div class="value" style="font-size:1.5rem">{{ "%.2f"|format(duration_seconds) }}s</div>
+    </div>
+  </div>
+
+  <!-- ── Filters ─────────────────────────────────────────── -->
+  <div class="filters">
+    <input type="text" id="searchInput" placeholder="🔍  Search by test ID…" />
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="pass">✅ Pass</button>
+    <button class="filter-btn" data-filter="fail">❌ Fail</button>
+    <button class="filter-btn" data-filter="error">⚠️ Error</button>
+
+    {% set all_tags = [] %}
+    {% for r in results %}
+      {% for t in r.test_case.tags %}
+        {% if t not in all_tags %}
+          {% if all_tags.append(t) %}{% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+    {% for t in all_tags %}
+    <button class="filter-btn tag-filter" data-tag="{{ t }}">🏷 {{ t }}</button>
+    {% endfor %}
+  </div>
+
+  <!-- ── Results Matrix ──────────────────────────────────── -->
+  {% set criteria_names = [] %}
+  {% for r in results %}
+    {% if r.judgments and criteria_names|length == 0 %}
+      {% for j in r.judgments %}{% if criteria_names.append(j.criterion) %}{% endif %}{% endfor %}
+    {% endif %}
+  {% endfor %}
+
+  {% set ncols = criteria_names|length + 3 %}
+  <div class="glass matrix-wrap">
+    <table class="matrix" id="matrix">
+      <thead>
+        <tr>
+          <th class="tid-col">Test Case</th>
+          {% for c in criteria_names %}<th title="{{ c }}">{{ c }}</th>{% endfor %}
+          <th>Aggregate</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        {% set status = 'pass' if r.passed else ('error' if r.error else 'fail') %}
+        {% set status_icon = '✅' if r.passed else ('⚠️' if r.error else '❌') %}
+        {% set jmap = {} %}
+        {% for j in r.judgments %}{% if jmap.update({j.criterion: j}) %}{% endif %}{% endfor %}
+        <tr class="test-row"
+            onclick="toggleDetail(this)"
+            data-status="{{ status }}"
+            data-id="{{ r.test_case.id|lower }}"
+            data-tags="{{ r.test_case.tags|join(',') | lower }}">
+          <td class="tid" title="Click to see details">{{ r.test_case.id }}</td>
+          {% for c in criteria_names %}
+            {% set j = jmap.get(c) %}
+            {% if j %}
+              {% set cls = 'sc-green' if j.score >= 0.7 else ('sc-amber' if j.score >= 0.4 else 'sc-red') %}
+              <td class="score-cell {{ cls }}" title="{{ j.verdict }}">{{ "%.2f"|format(j.score) }}</td>
+            {% else %}
+              <td class="score-cell sc-na">—</td>
+            {% endif %}
+          {% endfor %}
+          {% set acls = 'sc-green' if r.aggregate_score >= 0.7 else ('sc-amber' if r.aggregate_score >= 0.4 else 'sc-red') %}
+          <td class="score-cell agg {{ acls }}">{{ "%.2f"|format(r.aggregate_score) }}</td>
+          <td title="{{ r.error or status }}">{{ status_icon }}</td>
+        </tr>
+        <tr class="detail-row">
+          <td colspan="{{ ncols }}">
+            {% if r.error %}
+            <div class="error-banner">⚠️ {{ r.error }}</div>
+            {% endif %}
+
+            <div class="detail-grid">
+              <div>
+                <h4>Input — Prompt</h4>
+                <pre>{{ r.test_case.prompt }}</pre>
+              </div>
+              <div>
+                <h4>Expected Output — Reference</h4>
+                <pre>{{ r.test_case.reference if r.test_case.reference else '— (no reference provided)' }}</pre>
+              </div>
+              <div>
+                <h4>Actual Output — Response</h4>
+                <pre>{{ r.test_case.response }}</pre>
+              </div>
+            </div>
+
+            <div class="why-title">
+              {% if r.passed %}Why it passed — per criterion
+              {% else %}Why it failed — per criterion{% endif %}
+              (aggregate {{ "%.2f"|format(r.aggregate_score) }}, threshold 0.70)
+            </div>
+            {% for j in r.judgments %}
+            {% set cd = 'crit-pass' if j.score >= 0.7 else ('crit-partial' if j.score >= 0.4 else 'crit-fail') %}
+            <div class="crit-detail {{ cd }}">
+              <div class="cd-head">
+                <span class="cd-name">{{ j.criterion }}</span>
+                <span class="cd-verdict">{{ j.verdict }} &middot; {{ "%.2f"|format(j.score) }}</span>
+              </div>
+              <div class="cd-reason">{{ j.reasoning }}</div>
+            </div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="no-results" id="noResults">No tests match your filters.</div>
+
+  <!-- ── Footer ──────────────────────────────────────────── -->
+  <footer>
+    Generated by <strong>llm-judge</strong> v{{ framework_version }} &middot; {{ timestamp }}
+  </footer>
+</div>
+
+<!-- ── Scripts ──────────────────────────────────────────── -->
+<script>
+(function(){
+  // ── Row drill-down expand/collapse ──────────────────────
+  window.toggleDetail = function(row) {
+    const open = row.classList.toggle('open');
+    const detail = row.nextElementSibling;
+    if (detail && detail.classList.contains('detail-row')) {
+      detail.style.display = open ? 'table-row' : 'none';
+    }
+  };
+
+  // ── Filter state ────────────────────────────────────────
+  let activeStatus = 'all';
+  let activeTag    = null;
+
+  const cards      = document.querySelectorAll('.test-row');
+  const statusBtns = document.querySelectorAll('.filter-btn:not(.tag-filter)');
+  const tagBtns    = document.querySelectorAll('.filter-btn.tag-filter');
+  const searchEl   = document.getElementById('searchInput');
+  const noResults  = document.getElementById('noResults');
+
+  function applyFilters() {
+    const query = searchEl.value.trim().toLowerCase();
+    let visible = 0;
+
+    cards.forEach(function(card) {
+      const status = card.dataset.status;
+      const id     = card.dataset.id;
+      const tags   = card.dataset.tags;
+
+      let show = true;
+      if (activeStatus !== 'all' && status !== activeStatus) show = false;
+      if (activeTag && tags.indexOf(activeTag) === -1) show = false;
+      if (query && id.indexOf(query) === -1) show = false;
+
+      card.style.display = show ? '' : 'none';
+      const detail = card.nextElementSibling;
+      if (detail && detail.classList.contains('detail-row')) {
+        detail.style.display = (show && card.classList.contains('open')) ? 'table-row' : 'none';
+      }
+      if (show) visible++;
+    });
+
+    noResults.style.display = visible === 0 ? 'block' : 'none';
+  }
+
+  statusBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      statusBtns.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      activeStatus = btn.dataset.filter;
+      applyFilters();
+    });
+  });
+
+  tagBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (btn.classList.contains('active')) {
+        btn.classList.remove('active');
+        activeTag = null;
+      } else {
+        tagBtns.forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        activeTag = btn.dataset.tag.toLowerCase();
+      }
+      applyFilters();
+    });
+  });
+
+  searchEl.addEventListener('input', applyFilters);
+})();
+</script>
+</body>
+</html>
