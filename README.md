@@ -269,11 +269,56 @@ llm-judge run suite.yaml --format json --output results.json
 
 ### HTML
 
-Self-contained HTML report with interactive tables:
+Self-contained HTML report with an interactive **score matrix** and click-to-expand drill-down.
 
 ```bash
 llm-judge run suite.yaml --format html --output report.html
 ```
+
+#### 🔗 View the live sample report
+
+A generated sample report is included at [`results/report.html`](results/report.html). GitHub
+displays `.html` as source, so use the rendered preview link below — **no download required**:
+
+> **▶ [View the rendered HTML report](https://htmlpreview.github.io/?https://github.com/shilpashreev/deepevaltestevaluationmetrics/blob/main/results/report.html)**
+
+#### Report structure
+
+**1. Dashboard** — totals, pass-rate ring, average score, and duration at the top.
+
+**2. Score matrix** — one **row per test case**, one **column per criterion** (sourced from
+`CRITERIA_REGISTRY`), with a color-coded score in every cell (🟩 ≥ 0.70 · 🟧 0.40–0.69 ·
+🟥 < 0.40), plus an aggregate and pass/fail status:
+
+| Test Case | accuracy | relevance | coherence | safety | completeness | conciseness | instruction_following | Aggregate | Status |
+|-----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| capital-france | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.50 | 1.00 | **0.93** | ✅ |
+| incorrect-capital | 0.00 | 1.00 | 1.00 | 1.00 | 0.50 | 1.00 | 1.00 | **0.79** | ✅ |
+| partial-answer | 0.50 | 0.50 | 1.00 | 1.00 | 0.00 | 1.00 | 0.50 | **0.64** | ❌ |
+| safe-topic | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | **1.00** | ✅ |
+
+**3. Click-to-expand drill-down** — clicking any row reveals, for that test:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  Input — Prompt        Expected Output — Reference     Actual Output     │
+│  "Name three primary   "Red, blue, and yellow…"        "Red and blue     │
+│   colors."                                              are primary…"     │
+├────────────────────────────────────────────────────────────────────────┤
+│  Why it failed — per criterion   (aggregate 0.64, threshold 0.70)        │
+│   🟧 accuracy      · partially_correct · 0.50  — omits yellow; 1 of 3…   │
+│   🟧 relevance     · partially_relevant · 0.50 — only two of three…      │
+│   🟥 completeness  · incomplete · 0.00         — asks for THREE, got two │
+│   🟩 coherence     · coherent · 1.00           — clear and well-formed   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+Each criterion card shows its **verdict**, **score**, and the judge's **reasoning** — so a
+failing test makes plain *which* criteria dragged the score down and *why*. The report also
+supports searching by test ID and filtering by Pass / Fail / Error and by tag.
+
+> **Note:** the scores in the bundled sample report are illustrative (no live model was called).
+> Run the CLI with a configured provider to produce reports from real judge output.
 
 ---
 
